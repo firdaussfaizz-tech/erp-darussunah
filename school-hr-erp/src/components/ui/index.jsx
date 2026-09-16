@@ -2,7 +2,7 @@ import { forwardRef } from 'react'
 
 export function PageHeader({ title, description, actions }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 border-b border-[var(--color-border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <div className="page-header">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-[var(--color-navy)] sm:text-[28px]">
           {title}
@@ -16,7 +16,7 @@ export function PageHeader({ title, description, actions }) {
 
 export function Card({ children, className = '', padded = true }) {
   return (
-    <div className={`rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] ${padded ? 'p-5' : ''} ${className}`}>
+    <div className={`surface-card ${padded ? 'p-6' : ''} ${className}`}>
       {children}
     </div>
   )
@@ -26,7 +26,7 @@ export function SectionCard({ title, description, actions, children, className =
   return (
     <Card className={className} padded={false}>
       {(title || actions) && (
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+        <div className="section-heading">
           <div>
             {title && <h2 className="text-[15px] font-semibold text-[var(--color-ink)]">{title}</h2>}
             {description && <p className="mt-0.5 text-sm text-[var(--color-ink-soft)]">{description}</p>}
@@ -34,7 +34,7 @@ export function SectionCard({ title, description, actions, children, className =
           {actions}
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="section-body">{children}</div>
     </Card>
   )
 }
@@ -56,7 +56,7 @@ export const Button = forwardRef(function Button(
     <button
       ref={ref}
       type={type}
-      className={`inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${buttonVariants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full min-h-11 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${buttonVariants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
       {children}
@@ -70,7 +70,7 @@ export const Input = forwardRef(function Input({ label, error, className = '', c
       {label && <span className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">{label}</span>}
       <input
         ref={ref}
-        className={`w-full rounded-md border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-soft)] focus:border-[var(--color-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--color-navy)] ${className}`}
+        className={`w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-soft)] focus:border-[var(--color-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--color-navy)] ${className}`}
         {...props}
       />
       {error && <span className="mt-1 block text-xs text-[var(--color-danger)]">{error}</span>}
@@ -84,7 +84,7 @@ export const Select = forwardRef(function Select({ label, error, className = '',
       {label && <span className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">{label}</span>}
       <select
         ref={ref}
-        className={`w-full rounded-md border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--color-navy)] ${className}`}
+        className={`w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] focus:border-[var(--color-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--color-navy)] ${className}`}
         {...props}
       >
         {children}
@@ -100,7 +100,7 @@ export const Textarea = forwardRef(function Textarea({ label, error, className =
       {label && <span className="mb-1.5 block text-sm font-medium text-[var(--color-ink)]">{label}</span>}
       <textarea
         ref={ref}
-        className={`w-full rounded-md border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-soft)] focus:border-[var(--color-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--color-navy)] ${className}`}
+        className={`w-full rounded-xl border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-soft)] focus:border-[var(--color-navy)] focus:outline-none focus:ring-1 focus:ring-[var(--color-navy)] ${className}`}
         {...props}
       />
       {error && <span className="mt-1 block text-xs text-[var(--color-danger)]">{error}</span>}
@@ -118,7 +118,7 @@ const badgeColors = {
 
 export function Badge({ children, color = 'neutral' }) {
   return (
-    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${badgeColors[color] || badgeColors.neutral}`}>
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeColors[color] || badgeColors.neutral}`}>
       {children}
     </span>
   )
@@ -185,7 +185,7 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-10 sm:pt-16">
-      <div className={`w-full ${width} rounded-lg bg-[var(--color-surface)] shadow-xl`}>
+      <div className={`w-full ${width} rounded-3xl bg-[var(--color-surface)] shadow-xl`}>
         <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
           <h3 className="text-[15px] font-semibold text-[var(--color-ink)]">{title}</h3>
           <button onClick={onClose} className="rounded p-1 text-[var(--color-ink-soft)] hover:bg-[var(--color-navy-50)]" aria-label="Tutup">
