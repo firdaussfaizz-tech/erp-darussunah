@@ -1,224 +1,48 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { Users, CalendarCheck, CalendarClock, GraduationCap } from 'lucide-react'
-import { supabase } from '../lib/supabaseClient'
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Users, BookOpenCheck, WalletCards, UserRoundCheck, ArrowUpRight, CircleAlert, CalendarDays, Megaphone } from 'lucide-react'
+import { PageHeader, Card, SectionCard, Badge } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
-import { PageHeader, Card, SectionCard, StatCard, FullPageSpinner, Badge, EmptyState } from '../components/ui'
-import { formatDate, STATUS_BADGE_COLOR } from '../lib/format'
+import { unitOptions, overviewByUnit, attendanceTrend, revenueTrend, announcements, idr } from '../lib/demoData'
+
+const quickLinks = [
+  { to: '/siswa', label: 'Tambah siswa', icon: Users, color: '#276c5b' },
+  { to: '/akademik', label: 'Input nilai', icon: BookOpenCheck, color: '#3b67a4' },
+  { to: '/keuangan', label: 'Buat tagihan', icon: WalletCards, color: '#b57b25' },
+  { to: '/sdm', label: 'Catat presensi', icon: UserRoundCheck, color: '#704a8f' },
+]
 
 export default function Dashboard() {
-  const { isManager, employee, profile } = useAuth()
-  return (
-    <div>
-      <PageHeader
-        title={`Selamat datang, ${(profile?.full_name || '').split(' ')[0] || ''}`}
-        description={isManager ? 'Ringkasan kepegawaian yayasan hari ini.' : 'Ringkasan data kepegawaian Anda.'}
-      />
-      {isManager ? <ManagerDashboard /> : <SelfDashboard employeeId={employee?.id} />}
+  const { profile, demoMode } = useAuth()
+  const [unit, setUnit] = useState('Semua Unit')
+  const data = overviewByUnit[unit]
+  const firstName = (profile?.full_name || 'Admin').split(' ')[0]
+  return <div>
+    <PageHeader title={`Assalamu'alaikum, ${firstName}`} description="Berikut ringkasan operasional yayasan hari ini." actions={<select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm font-medium">{unitOptions.map((u) => <option key={u}>{u}</option>)}</select>} />
+    {demoMode && <div className="mb-5 flex items-center justify-between rounded-xl border border-[var(--color-gold)]/25 bg-[var(--color-gold-soft)] px-4 py-3 text-sm"><span><strong>Mode demo aktif.</strong> Data di halaman ini adalah contoh; struktur database Supabase asli sudah siap.</span><Badge color="gold">Demo</Badge></div>}
+
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <Metric icon={Users} label="Total Siswa" value={data.students.toLocaleString('id-ID')} change="+3,2%" detail="dibanding tahun lalu" />
+      <Metric icon={UserRoundCheck} label="Guru & Pegawai" value={data.teachers} change="+4" detail="pegawai aktif" />
+      <Metric icon={BookOpenCheck} label="Kehadiran Hari Ini" value={`${data.attendance}%`} change="+1,1%" detail="di atas rata-rata" />
+      <Metric icon={WalletCards} label="Penerimaan Bulan Ini" value={idr(data.revenue).replace('Rp', 'Rp ')} change={`${Math.round(data.revenue / data.target * 100)}%`} detail="dari target" />
     </div>
-  )
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1.55fr_1fr]">
+      <SectionCard title="Tren kehadiran siswa" description="Persentase lima hari sekolah terakhir"><ResponsiveContainer width="100%" height={265}><AreaChart data={attendanceTrend} margin={{ left: -20, right: 8 }}><defs><linearGradient id="attendanceFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#24735f" stopOpacity={.28}/><stop offset="100%" stopColor="#24735f" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false}/><XAxis dataKey="day" axisLine={false} tickLine={false}/><YAxis domain={[90, 100]} axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, borderColor: 'var(--color-border)' }}/><Area type="monotone" dataKey="SD" stroke="#24735f" strokeWidth={2.5} fill="url(#attendanceFill)"/><Area type="monotone" dataKey="SMP" stroke="#c4933f" strokeWidth={2} fill="transparent"/><Area type="monotone" dataKey="SMA" stroke="#3b67a4" strokeWidth={2} fill="transparent"/></AreaChart></ResponsiveContainer><div className="mt-2 flex justify-center gap-5 text-xs text-[var(--color-ink-soft)]"><Legend color="#24735f" label="SD"/><Legend color="#c4933f" label="SMP"/><Legend color="#3b67a4" label="SMA"/></div></SectionCard>
+      <SectionCard title="Penerimaan vs target" description="Dalam juta rupiah"><ResponsiveContainer width="100%" height={265}><BarChart data={revenueTrend}><CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false}/><XAxis dataKey="month" axisLine={false} tickLine={false}/><YAxis axisLine={false} tickLine={false}/><Tooltip contentStyle={{ borderRadius: 10, borderColor: 'var(--color-border)' }}/><Bar dataKey="target" fill="#e4eaec" radius={[5,5,0,0]}/><Bar dataKey="paid" fill="#c4933f" radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></SectionCard>
+    </div>
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1.1fr]">
+      <SectionCard title="Tindakan cepat"><div className="grid grid-cols-2 gap-3">{quickLinks.map(({ to, label, icon: Icon, color }) => <Link key={label} to={to} className="group rounded-xl border bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"><div className="mb-4 grid h-9 w-9 place-items-center rounded-lg text-white" style={{ background: color }}><Icon className="h-4 w-4" /></div><div className="flex items-center justify-between"><span className="text-sm font-semibold">{label}</span><ArrowUpRight className="h-4 w-4 text-[var(--color-ink-soft)] transition group-hover:text-[var(--color-navy)]"/></div></Link>)}</div></SectionCard>
+      <SectionCard title="Perlu perhatian" actions={<Link to="/laporan" className="text-sm font-semibold text-[var(--color-navy)]">Lihat laporan</Link>}><div className="space-y-3"><Alert icon={CircleAlert} title="162 tagihan melewati jatuh tempo" detail="Total tunggakan Rp71,5 juta" tone="danger"/><Alert icon={CalendarDays} title="7 kontrak pegawai segera berakhir" detail="Perlu ditinjau dalam 60 hari" tone="gold"/><Alert icon={Megaphone} title="3 pengumuman masih berupa draf" detail="Menunggu pemeriksaan sebelum diterbitkan" tone="navy"/></div></SectionCard>
+    </div>
+
+    <div className="mt-6"><SectionCard title="Pengumuman terbaru" actions={<Link to="/komunikasi" className="text-sm font-semibold text-[var(--color-navy)]">Lihat semua</Link>}><div className="divide-y">{announcements.slice(0,2).map((a) => <div key={a.title} className="flex items-center gap-4 py-3 first:pt-0 last:pb-0"><div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--color-navy-50)]"><Megaphone className="h-5 w-5 text-[var(--color-navy)]"/></div><div className="flex-1"><p className="font-medium">{a.title}</p><p className="text-sm text-[var(--color-ink-soft)]">{a.audience} · {a.unit} · {a.date}</p></div><Badge color={a.status === 'Terbit' ? 'success' : 'navy'}>{a.status}</Badge></div>)}</div></SectionCard></div>
+  </div>
 }
 
-function ManagerDashboard() {
-  const [loading, setLoading] = useState(true)
-  const [employees, setEmployees] = useState([])
-  const [pendingLeave, setPendingLeave] = useState([])
-  const [todayAttendance, setTodayAttendance] = useState([])
-  const [trainings, setTrainings] = useState([])
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
-      const today = new Date().toISOString().slice(0, 10)
-      const [emp, leave, att, tr] = await Promise.all([
-        supabase.from('employees').select('id, status, status_kepegawaian, schools(nama, jenjang)'),
-        supabase
-          .from('leave_requests')
-          .select('id, tanggal_mulai, tanggal_selesai, employees(nama), leave_types(nama)')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase.from('attendance').select('status').eq('tanggal', today),
-        supabase
-          .from('trainings')
-          .select('id, nama_pelatihan, tanggal_mulai, lokasi')
-          .gte('tanggal_mulai', today)
-          .order('tanggal_mulai', { ascending: true })
-          .limit(4),
-      ])
-      setEmployees(emp.data || [])
-      setPendingLeave(leave.data || [])
-      setTodayAttendance(att.data || [])
-      setTrainings(tr.data || [])
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  if (loading) return <FullPageSpinner />
-
-  const totalAktif = employees.filter((e) => e.status === 'aktif').length
-  const byJenjang = ['SD', 'SMP', 'SMA'].map((j) => ({
-    jenjang: j,
-    jumlah: employees.filter((e) => e.schools?.jenjang === j).length,
-  }))
-  const hadirHariIni = todayAttendance.filter((a) => a.status === 'hadir').length
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Pegawai Aktif" value={totalAktif} sub={`${employees.length} total tercatat`} />
-        <StatCard label="Hadir Hari Ini" value={hadirHariIni} sub={`dari ${todayAttendance.length} presensi tercatat`} accent="gold" />
-        <StatCard label="Pengajuan Cuti Menunggu" value={pendingLeave.length} sub="perlu persetujuan" />
-        <StatCard label="Pelatihan Mendatang" value={trainings.length} sub="terjadwal" accent="gold" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <SectionCard title="Sebaran Pegawai per Jenjang" className="lg:col-span-3">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={byJenjang}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="jenjang" tick={{ fontSize: 13, fill: 'var(--color-ink-soft)' }} axisLine={{ stroke: 'var(--color-border)' }} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--color-ink-soft)' }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ fill: 'var(--color-navy-50)' }} contentStyle={{ borderRadius: 8, borderColor: 'var(--color-border)', fontSize: 13 }} />
-              <Bar dataKey="jumlah" fill="var(--color-navy)" radius={[4, 4, 0, 0]} maxBarSize={64} />
-            </BarChart>
-          </ResponsiveContainer>
-        </SectionCard>
-
-        <SectionCard title="Pelatihan Mendatang" className="lg:col-span-2">
-          {trainings.length === 0 ? (
-            <p className="text-sm text-[var(--color-ink-soft)]">Belum ada pelatihan terjadwal.</p>
-          ) : (
-            <ul className="flex flex-col divide-y divide-[var(--color-border)]">
-              {trainings.map((t) => (
-                <li key={t.id} className="py-2.5 first:pt-0 last:pb-0">
-                  <p className="text-sm font-medium text-[var(--color-ink)]">{t.nama_pelatihan}</p>
-                  <p className="text-xs text-[var(--color-ink-soft)]">{formatDate(t.tanggal_mulai)} · {t.lokasi || 'Lokasi belum diisi'}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SectionCard>
-      </div>
-
-      <SectionCard
-        title="Pengajuan Cuti Menunggu Persetujuan"
-        actions={<Link to="/cuti" className="text-sm font-medium text-[var(--color-navy)] hover:underline">Lihat semua</Link>}
-      >
-        {pendingLeave.length === 0 ? (
-          <EmptyState icon={CalendarClock} title="Tidak ada pengajuan menunggu" description="Semua pengajuan cuti sudah diproses." />
-        ) : (
-          <ul className="flex flex-col divide-y divide-[var(--color-border)]">
-            {pendingLeave.map((l) => (
-              <li key={l.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                <div>
-                  <p className="text-sm font-medium text-[var(--color-ink)]">{l.employees?.nama}</p>
-                  <p className="text-xs text-[var(--color-ink-soft)]">
-                    {l.leave_types?.nama} · {formatDate(l.tanggal_mulai)} – {formatDate(l.tanggal_selesai)}
-                  </p>
-                </div>
-                <Badge color="gold">Menunggu</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-    </div>
-  )
-}
-
-function SelfDashboard({ employeeId }) {
-  const [loading, setLoading] = useState(true)
-  const [attendanceCount, setAttendanceCount] = useState(0)
-  const [leaveRequests, setLeaveRequests] = useState([])
-  const [lastPayslip, setLastPayslip] = useState(null)
-  const [trainings, setTrainings] = useState([])
-
-  useEffect(() => {
-    if (!employeeId) {
-      setLoading(false)
-      return
-    }
-    const load = async () => {
-      setLoading(true)
-      const monthStart = new Date()
-      monthStart.setDate(1)
-      const monthStartStr = monthStart.toISOString().slice(0, 10)
-      const [att, leave, payslip, tr] = await Promise.all([
-        supabase.from('attendance').select('id', { count: 'exact', head: true }).eq('employee_id', employeeId).eq('status', 'hadir').gte('tanggal', monthStartStr),
-        supabase.from('leave_requests').select('id, status, tanggal_mulai, tanggal_selesai, leave_types(nama)').eq('employee_id', employeeId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('payroll_details').select('gaji_bersih, payroll_runs(periode_bulan, periode_tahun)').eq('employee_id', employeeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('training_participants').select('status, trainings(nama_pelatihan, tanggal_mulai)').eq('employee_id', employeeId).order('id', { ascending: false }).limit(4),
-      ])
-      setAttendanceCount(att.count || 0)
-      setLeaveRequests(leave.data || [])
-      setLastPayslip(payslip.data)
-      setTrainings(tr.data || [])
-      setLoading(false)
-    }
-    load()
-  }, [employeeId])
-
-  if (loading) return <FullPageSpinner />
-
-  if (!employeeId) {
-    return (
-      <EmptyState
-        icon={Users}
-        title="Akun Anda belum ditautkan ke data pegawai"
-        description="Hubungi Admin Yayasan / HR agar akun login Anda ditautkan ke data kepegawaian, sehingga Anda bisa melihat presensi, cuti, dan slip gaji Anda."
-      />
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Hadir Bulan Ini" value={attendanceCount} icon={CalendarCheck} />
-        <StatCard label="Pengajuan Cuti" value={leaveRequests.length} sub="riwayat terbaru" accent="gold" />
-        <StatCard
-          label="Gaji Bersih Terakhir"
-          value={lastPayslip ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(lastPayslip.gaji_bersih) : '—'}
-        />
-      </div>
-
-      <SectionCard title="Riwayat Cuti Saya" actions={<Link to="/cuti" className="text-sm font-medium text-[var(--color-navy)] hover:underline">Ajukan / lihat semua</Link>}>
-        {leaveRequests.length === 0 ? (
-          <p className="text-sm text-[var(--color-ink-soft)]">Belum ada pengajuan cuti.</p>
-        ) : (
-          <ul className="flex flex-col divide-y divide-[var(--color-border)]">
-            {leaveRequests.map((l, i) => (
-              <li key={i} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                <div>
-                  <p className="text-sm font-medium text-[var(--color-ink)]">{l.leave_types?.nama}</p>
-                  <p className="text-xs text-[var(--color-ink-soft)]">{formatDate(l.tanggal_mulai)} – {formatDate(l.tanggal_selesai)}</p>
-                </div>
-                <Badge color={STATUS_BADGE_COLOR[l.status]}>{l.status}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-
-      <SectionCard title="Pelatihan Saya" actions={<Link to="/pelatihan" className="text-sm font-medium text-[var(--color-navy)] hover:underline">Lihat semua</Link>}>
-        {trainings.length === 0 ? (
-          <p className="text-sm text-[var(--color-ink-soft)]">Belum terdaftar pelatihan apa pun.</p>
-        ) : (
-          <ul className="flex flex-col divide-y divide-[var(--color-border)]">
-            {trainings.map((t, i) => (
-              <li key={i} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                <div>
-                  <p className="text-sm font-medium text-[var(--color-ink)]">{t.trainings?.nama_pelatihan}</p>
-                  <p className="text-xs text-[var(--color-ink-soft)]">{formatDate(t.trainings?.tanggal_mulai)}</p>
-                </div>
-                <Badge color={STATUS_BADGE_COLOR[t.status]}>{t.status}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </SectionCard>
-    </div>
-  )
-}
+function Metric({ icon: Icon, label, value, change, detail }) { return <Card className="group"><div className="mb-5 flex items-center justify-between"><div className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy)]"><Icon className="h-5 w-5"/></div><span className="rounded-full bg-[var(--color-success-soft)] px-2 py-1 text-xs font-semibold text-[var(--color-success)]">{change}</span></div><p className="text-sm text-[var(--color-ink-soft)]">{label}</p><p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-[var(--color-ink)]">{value}</p><p className="mt-1 text-xs text-[var(--color-ink-soft)]">{detail}</p></Card> }
+function Legend({ color, label }) { return <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: color }}/>{label}</span> }
+function Alert({ icon: Icon, title, detail, tone }) { const colors = { danger: ['var(--color-danger-soft)','var(--color-danger)'], gold: ['var(--color-gold-soft)','var(--color-gold)'], navy: ['var(--color-navy-50)','var(--color-navy)'] }; const [bg, color] = colors[tone]; return <div className="flex items-center gap-3 rounded-xl border p-3"><div className="grid h-9 w-9 place-items-center rounded-lg" style={{ background: bg, color }}><Icon className="h-4 w-4"/></div><div><p className="text-sm font-semibold">{title}</p><p className="text-xs text-[var(--color-ink-soft)]">{detail}</p></div></div> }
