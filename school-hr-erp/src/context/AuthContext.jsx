@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
+  const [demoMode, setDemoMode] = useState(() => localStorage.getItem('erp-demo') === 'true')
   const [session, setSession] = useState(undefined) // undefined = belum dicek, null = tidak login
   const [profile, setProfile] = useState(null)
   const [roles, setRoles] = useState([])
@@ -31,6 +32,14 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    if (demoMode) {
+      setSession({ user: { id: 'demo-user', email: 'admin@demo.darussunah.sch.id' } })
+      setProfile({ id: 'demo-user', full_name: 'Admin Yayasan', email: 'admin@demo.darussunah.sch.id' })
+      setRoles([{ role: 'admin_yayasan', school_id: null }])
+      setEmployee(null)
+      setLoadingContext(false)
+      return undefined
+    }
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       loadContext(data.session?.user?.id)
@@ -40,7 +49,22 @@ export function AuthProvider({ children }) {
       loadContext(newSession?.user?.id)
     })
     return () => listener.subscription.unsubscribe()
-  }, [loadContext])
+  }, [loadContext, demoMode])
+
+  const enterDemo = () => {
+    localStorage.setItem('erp-demo', 'true')
+    setDemoMode(true)
+  }
+
+  const signOut = async () => {
+    if (demoMode) {
+      localStorage.removeItem('erp-demo')
+      setDemoMode(false)
+      setSession(null)
+      return
+    }
+    await supabase.auth.signOut()
+  }
 
   const roleNames = useMemo(() => roles.map((r) => r.role), [roles])
   const isAdminYayasan = roleNames.includes('admin_yayasan')
@@ -61,9 +85,11 @@ export function AuthProvider({ children }) {
     isManager,
     hasFullAccess,
     managedSchoolIds,
+    demoMode,
+    enterDemo,
     loading: session === undefined || loadingContext,
     refreshContext: () => loadContext(session?.user?.id),
-    signOut: () => supabase.auth.signOut(),
+    signOut,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

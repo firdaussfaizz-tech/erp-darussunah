@@ -15,6 +15,7 @@ import TrainingList from './pages/training/TrainingList'
 import TrainingDetail from './pages/training/TrainingDetail'
 import OrgStructure from './pages/org/OrgStructure'
 import UserRoles from './pages/users/UserRoles'
+import { StudentsPage, AcademicPage, FinancePage, SdmPage, ResourcesPage, CommunicationPage, ReportsPage } from './pages/modules/ModulePages'
 
 export default function App() {
   return (
@@ -31,6 +32,13 @@ export default function App() {
             }
           >
             <Route index element={<Dashboard />} />
+            <Route path="siswa" element={<StudentsPage />} />
+            <Route path="akademik" element={<AcademicPage />} />
+            <Route path="keuangan" element={<FinancePage />} />
+            <Route path="sdm" element={<SdmPage />} />
+            <Route path="sarpras" element={<ResourcesPage />} />
+            <Route path="komunikasi" element={<CommunicationPage />} />
+            <Route path="laporan" element={<ReportsPage />} />
             <Route path="pegawai" element={<EmployeeList />} />
             <Route path="pegawai/:id" element={<EmployeeDetail />} />
             <Route path="presensi" element={<AttendanceList />} />
