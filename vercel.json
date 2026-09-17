@@ -1,0 +1,7 @@
+{
+  "framework": "vite",
+  "installCommand": "cd school-hr-erp && npm ci",
+  "buildCommand": "cd school-hr-erp && npm run build",
+  "outputDirectory": "school-hr-erp/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
