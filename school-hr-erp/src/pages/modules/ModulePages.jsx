@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Search, Plus, Download, Users, BookOpen, WalletCards, PackageCheck, Megaphone, UserRoundCheck, Clock3, CircleAlert } from 'lucide-react'
 import { PageHeader, Card, SectionCard, StatCard, Badge, Button, Input, Select, Modal, Table, Tr, Td } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
-import { students as initialStudents, invoices, schedule, facilities, announcements, staff, idr, unitOptions } from '../../lib/demoData'
+import { supabase } from '../../lib/supabaseClient'
+import { invoices, schedule, facilities, announcements, staff, idr, unitOptions } from '../../lib/demoData'
 
 const tone = (status) => ({ Aktif: 'success', Lunas: 'success', Baik: 'success', Terbit: 'success', Menunggu: 'gold', Terjadwal: 'navy', Cuti: 'gold', 'Perlu perbaikan': 'gold', Menunggak: 'danger', Draf: 'neutral' }[status] || 'neutral')
 
@@ -15,27 +16,64 @@ function Toolbar({ query, setQuery, unit, setUnit, actionLabel, onAction }) {
 }
 
 export function StudentsPage() {
-  const { demoMode } = useAuth()
-  const [rows, setRows] = useState(initialStudents)
+  const { profile, isAdminYayasan, isManager } = useAuth()
+  const [rows, setRows] = useState([])
+  const [units, setUnits] = useState([])
+  const [classes, setClasses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [unit, setUnit] = useState('Semua Unit')
+  const [unit, setUnit] = useState('')
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ nama: '', nis: '', unit: 'SD', kelas: '' })
-  const filtered = useMemo(() => rows.filter((s) => (unit === 'Semua Unit' || s.unit === unit) && `${s.nama} ${s.nis} ${s.kelas}`.toLowerCase().includes(query.toLowerCase())), [rows, query, unit])
-  const add = (e) => { e.preventDefault(); setRows((old) => [{ ...form, id: Date.now(), wali: 'Belum diisi', status: 'Aktif' }, ...old]); setOpen(false); setForm({ nama: '', nis: '', unit: 'SD', kelas: '' }) }
-  if (!demoMode) return <OperationalNotice title="Kesiswaan" description="Data siswa operasional belum tersambung pada akun ini. Admin dapat mengaktifkan akses dan impor data siswa dari Supabase." />
+  const blankForm = { full_name: '', nis: '', nisn: '', gender: '', current_unit_id: '', class_id: '', guardian_name: '', guardian_phone: '' }
+  const [form, setForm] = useState(blankForm)
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    const [{ data: studentData, error: studentsError }, { data: unitData }, { data: classData }] = await Promise.all([
+      supabase.from('students').select('id, nis, nisn, full_name, gender, status, current_unit_id, units(code, name), guardians(full_name, phone, is_primary_contact), class_enrollments(classes(id, name, unit_id))').order('full_name'),
+      supabase.from('units').select('id, code, name').order('code'),
+      supabase.from('classes').select('id, name, unit_id').order('name'),
+    ])
+    if (studentsError) setError(studentsError.message)
+    setRows(studentData || []); setUnits(unitData || []); setClasses(classData || []); setLoading(false)
+  }, [])
+  useEffect(() => { load() }, [load])
+  const availableUnits = useMemo(() => isAdminYayasan ? units : units.filter((u) => u.id === profile?.unit_id), [isAdminYayasan, units, profile?.unit_id])
+  const visibleClasses = useMemo(() => classes.filter((c) => !form.current_unit_id || c.unit_id === form.current_unit_id), [classes, form.current_unit_id])
+  const filtered = useMemo(() => rows.filter((s) => (!unit || s.current_unit_id === unit) && `${s.full_name} ${s.nis} ${s.nisn || ''}`.toLowerCase().includes(query.toLowerCase())), [rows, query, unit])
+  const activeCount = rows.filter((s) => s.status === 'aktif').length
+  const incompleteCount = rows.filter((s) => !s.nisn || !(s.guardians || []).some((g) => g.is_primary_contact)).length
+  const openCreate = () => { const defaultUnit = isAdminYayasan ? availableUnits[0]?.id || '' : profile?.unit_id || ''; setForm({ ...blankForm, current_unit_id: defaultUnit }); setError(''); setOpen(true) }
+  const add = async (e) => {
+    e.preventDefault(); setSaving(true); setError('')
+    const { data: created, error: studentError } = await supabase.from('students').insert({ full_name: form.full_name.trim(), nis: form.nis.trim(), nisn: form.nisn.trim() || null, gender: form.gender || null, current_unit_id: form.current_unit_id, status: 'aktif' }).select('id').single()
+    if (studentError) { setSaving(false); setError(studentError.message); return }
+    const followUps = []
+    if (form.class_id) followUps.push(supabase.from('class_enrollments').insert({ student_id: created.id, class_id: form.class_id }))
+    if (form.guardian_name.trim()) followUps.push(supabase.from('guardians').insert({ student_id: created.id, full_name: form.guardian_name.trim(), phone: form.guardian_phone.trim() || null, relation: 'Orang tua/wali', is_primary_contact: true }))
+    const results = await Promise.all(followUps)
+    const followUpError = results.find((result) => result.error)?.error
+    setSaving(false)
+    if (followUpError) { setError(`Siswa tersimpan, tetapi data lanjutan belum lengkap: ${followUpError.message}`); await load(); return }
+    setOpen(false); setForm(blankForm); await load()
+  }
+  const exportCsv = () => {
+    const header = 'NIS,NISN,Nama,Unit,Kelas,Status\\n'
+    const csv = filtered.map((s) => [s.nis, s.nisn || '', s.full_name, s.units?.code || '', s.class_enrollments?.[0]?.classes?.name || '', s.status || ''].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\\n')
+    const url = URL.createObjectURL(new Blob([header + csv], { type: 'text/csv;charset=utf-8;' })); const link = document.createElement('a'); link.href = url; link.download = 'siswa-darussunah.csv'; link.click(); URL.revokeObjectURL(url)
+  }
   return <>
-    <PageHeader title="Data Siswa" description="Data induk siswa lintas jenjang dan riwayat kelas." actions={<Button variant="outline"><Download className="h-4 w-4" />Ekspor</Button>} />
-    <div className="grid gap-4 sm:grid-cols-3 mb-6"><StatCard label="Siswa Aktif" value="1.248" sub="SD, SMP, dan SMA" /><StatCard label="Siswa Baru" value="164" sub="Tahun ajaran 2026/2027" accent="gold" /><StatCard label="Data Belum Lengkap" value="18" sub="Perlu ditindaklanjuti" /></div>
-    <SectionCard title="Daftar siswa" description={`${filtered.length} data ditampilkan`}>
-      <Toolbar query={query} setQuery={setQuery} unit={unit} setUnit={setUnit} actionLabel="Tambah siswa" onAction={() => setOpen(true)} />
-      <Table columns={['NIS', 'Nama siswa', 'Unit / Kelas', 'Nama wali', 'Status']}>
-        {filtered.map((s) => <Tr key={s.id}><Td className="font-mono text-xs text-[var(--color-ink-soft)]">{s.nis}</Td><Td className="font-medium">{s.nama}</Td><Td><span className="font-medium">{s.unit}</span> · {s.kelas}</Td><Td>{s.wali}</Td><Td><Badge color={tone(s.status)}>{s.status}</Badge></Td></Tr>)}
-      </Table>
+    <PageHeader title="Kesiswaan" description="Data induk, penempatan kelas, dan kontak wali siswa." actions={<Button variant="outline" onClick={exportCsv} disabled={!filtered.length}><Download className="h-4 w-4" />Ekspor</Button>} />
+    <div className="grid gap-4 sm:grid-cols-3 mb-6"><StatCard label="Siswa aktif" value={activeCount} sub="Pada unit yang dapat Anda akses" /><StatCard label="Total data siswa" value={rows.length} sub="Sesuai cakupan akun" accent="gold" /><StatCard label="Perlu dilengkapi" value={incompleteCount} sub="NISN atau kontak wali belum ada" /></div>
+    {error && <Card className="mb-6 border-[var(--color-danger)]"><p className="text-sm text-[var(--color-danger)]">{error}</p></Card>}
+    <SectionCard title="Daftar siswa" description={loading ? 'Memuat data…' : `${filtered.length} data ditampilkan`}>
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center"><label className="relative flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--color-ink-soft)]" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama, NIS, atau NISN…" className="w-full rounded-lg border bg-white py-2 pl-10 pr-3 text-sm" /></label><select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="">Semua unit yang dapat diakses</option>{availableUnits.map((u) => <option key={u.id} value={u.id}>{u.code} · {u.name}</option>)}</select>{isManager && <Button onClick={openCreate}><Plus className="h-4 w-4" />Tambah siswa</Button>}</div>
+      {loading ? <div className="py-10 text-center text-sm text-[var(--color-ink-soft)]">Memuat data siswa…</div> : !filtered.length ? <div className="py-10 text-center text-sm text-[var(--color-ink-soft)]">Belum ada siswa pada cakupan ini.</div> : <Table columns={['NIS', 'Nama siswa', 'Unit / Kelas', 'Kontak wali', 'Status']}>
+        {filtered.map((s) => { const guardian = (s.guardians || []).find((g) => g.is_primary_contact) || s.guardians?.[0]; const enrollment = s.class_enrollments?.[0]?.classes; return <Tr key={s.id}><Td className="font-mono text-xs text-[var(--color-ink-soft)]"><p>{s.nis}</p>{s.nisn && <p className="mt-1">NISN {s.nisn}</p>}</Td><Td><p className="font-medium">{s.full_name}</p><p className="mt-1 text-xs text-[var(--color-ink-soft)]">{s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '—'}</p></Td><Td><span className="font-medium">{s.units?.code || '—'}</span> · {enrollment?.name || 'Belum ditempatkan'}</Td><Td>{guardian ? <><p>{guardian.full_name}</p><p className="mt-1 text-xs text-[var(--color-ink-soft)]">{guardian.phone || 'Nomor belum diisi'}</p></> : 'Belum diisi'}</Td><Td><Badge color={tone(s.status === 'aktif' ? 'Aktif' : s.status)}>{s.status || 'aktif'}</Badge></Td></Tr> })}
+      </Table>}
     </SectionCard>
-    <Modal open={open} onClose={() => setOpen(false)} title="Tambah siswa">
-      <form onSubmit={add} className="grid gap-4"><Input label="Nama lengkap" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} required /><Input label="Nomor induk siswa" value={form.nis} onChange={(e) => setForm({ ...form, nis: e.target.value })} required /><div className="grid grid-cols-2 gap-3"><Select label="Unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}><option>SD</option><option>SMP</option><option>SMA</option></Select><Input label="Kelas" value={form.kelas} onChange={(e) => setForm({ ...form, kelas: e.target.value })} required /></div><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setOpen(false)}>Batal</Button><Button type="submit">Simpan siswa</Button></div></form>
-    </Modal>
+    <Modal open={open} onClose={() => setOpen(false)} title="Tambah siswa baru" width="max-w-2xl"><form onSubmit={add} className="grid gap-4"><div className="grid gap-4 sm:grid-cols-2"><Input label="Nama lengkap" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /><Input label="Nomor induk siswa" required value={form.nis} onChange={(e) => setForm({ ...form, nis: e.target.value })} /><Input label="NISN" value={form.nisn} onChange={(e) => setForm({ ...form, nisn: e.target.value })} /><Select label="Jenis kelamin" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}><option value="">Belum dipilih</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></Select><Select label="Unit" required value={form.current_unit_id} onChange={(e) => setForm({ ...form, current_unit_id: e.target.value, class_id: '' })}><option value="">Pilih unit</option>{availableUnits.map((u) => <option key={u.id} value={u.id}>{u.code} · {u.name}</option>)}</Select><Select label="Kelas" value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })}><option value="">Belum ditempatkan</option>{visibleClasses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></div><div className="border-t pt-4"><p className="mb-3 text-sm font-medium">Kontak utama orang tua / wali</p><div className="grid gap-4 sm:grid-cols-2"><Input label="Nama wali" value={form.guardian_name} onChange={(e) => setForm({ ...form, guardian_name: e.target.value })} /><Input label="Nomor WhatsApp / telepon" value={form.guardian_phone} onChange={(e) => setForm({ ...form, guardian_phone: e.target.value })} /></div></div><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setOpen(false)}>Batal</Button><Button type="submit" disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan siswa'}</Button></div></form></Modal>
   </>
 }
 
