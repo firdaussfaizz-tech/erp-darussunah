@@ -16,6 +16,7 @@ import TrainingDetail from './pages/training/TrainingDetail'
 import OrgStructure from './pages/org/OrgStructure'
 import UserRoles from './pages/users/UserRoles'
 import YayasanAdmin from './pages/admin/YayasanAdmin'
+import { StudentProfilesPage, StudentPlacementPage, StudentAttendancePermissionPage } from './pages/students/StudentOperations'
 import { StudentsPage, AcademicPage, FinancePage, SdmPage, ResourcesPage, CommunicationPage, ReportsPage } from './pages/modules/ModulePages'
 
 export default function App() {
@@ -34,6 +35,9 @@ export default function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="siswa" element={<StudentsPage />} />
+            <Route path="siswa/profil" element={<StudentProfilesPage />} />
+            <Route path="siswa/penempatan" element={<StudentPlacementPage />} />
+            <Route path="siswa/presensi-izin" element={<StudentAttendancePermissionPage />} />
             <Route path="akademik" element={<AcademicPage />} />
             <Route path="keuangan" element={<FinancePage />} />
             <Route path="sdm" element={<SdmPage />} />
