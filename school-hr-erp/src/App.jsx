@@ -17,6 +17,7 @@ import OrgStructure from './pages/org/OrgStructure'
 import UserRoles from './pages/users/UserRoles'
 import YayasanAdmin from './pages/admin/YayasanAdmin'
 import { StudentProfilesPage, StudentPlacementPage, StudentAttendancePermissionPage } from './pages/students/StudentOperations'
+import { GuardianCommunicationPage, StudentEventsPage, StudentImportPage, StudentInsightsPage, StudentTransitionPage } from './pages/students/StudentLifecycle'
 import { StudentsPage, AcademicPage, FinancePage, SdmPage, ResourcesPage, CommunicationPage, ReportsPage } from './pages/modules/ModulePages'
 
 export default function App() {
@@ -38,6 +39,11 @@ export default function App() {
             <Route path="siswa/profil" element={<StudentProfilesPage />} />
             <Route path="siswa/penempatan" element={<StudentPlacementPage />} />
             <Route path="siswa/presensi-izin" element={<StudentAttendancePermissionPage />} />
+            <Route path="siswa/impor" element={<StudentImportPage />} />
+            <Route path="siswa/transisi" element={<StudentTransitionPage />} />
+            <Route path="siswa/kesiswaan" element={<StudentEventsPage />} />
+            <Route path="siswa/komunikasi-wali" element={<GuardianCommunicationPage />} />
+            <Route path="siswa/rekap" element={<StudentInsightsPage />} />
             <Route path="akademik" element={<AcademicPage />} />
             <Route path="keuangan" element={<FinancePage />} />
             <Route path="sdm" element={<SdmPage />} />
