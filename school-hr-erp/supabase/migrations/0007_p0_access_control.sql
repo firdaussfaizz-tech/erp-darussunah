@@ -63,3 +63,32 @@ as $$ select public.is_admin_yayasan() or exists (select 1 from public.units u w
 revoke all on function public.can_access_label(text) from public;
 grant execute on function public.can_access_label(text) to authenticated;
 
+drop policy if exists "units_authenticated_read" on public.units;
+create policy "units_authenticated_read" on public.units for select to authenticated using (id=public.current_user_unit() or public.is_admin_yayasan());
+drop policy if exists "students_unit_scope" on public.students;
+create policy "students_unit_scope" on public.students for all to authenticated using (public.can_access_unit(current_unit_id) or public.can_access_student(id)) with check (public.can_access_unit(current_unit_id));
+drop policy if exists "classes_unit_scope" on public.classes;
+create policy "classes_unit_scope" on public.classes for all to authenticated using (public.can_access_unit(unit_id) or public.can_access_class(id)) with check (public.can_access_unit(unit_id));
+drop policy if exists "subjects_unit_scope" on public.subjects;
+create policy "subjects_unit_scope" on public.subjects for all to authenticated using (public.can_access_unit(unit_id)) with check (public.can_access_unit(unit_id));
+drop policy if exists "staff_unit_scope" on public.staff;
+create policy "staff_unit_scope" on public.staff for all to authenticated using (profile_id=(select auth.uid()) or public.can_access_unit(unit_id)) with check (profile_id=(select auth.uid()) or public.can_access_unit(unit_id));
+drop policy if exists "guardians_student_scope" on public.guardians;
+create policy "guardians_student_scope" on public.guardians for all to authenticated using (public.can_access_student(student_id)) with check (public.can_access_student(student_id));
+drop policy if exists "enrollments_class_scope" on public.class_enrollments;
+create policy "enrollments_class_scope" on public.class_enrollments for all to authenticated using (public.can_access_class(class_id)) with check (public.can_access_class(class_id));
+drop policy if exists "teaching_unit_class_scope" on public.teaching_assignments;
+create policy "teaching_unit_class_scope" on public.teaching_assignments for all to authenticated using (teacher_id=(select auth.uid()) or public.can_access_class(class_id)) with check (teacher_id=(select auth.uid()) or public.can_access_class(class_id));
+drop policy if exists "attendance_class_scope" on public.attendance_records;
+create policy "attendance_class_scope" on public.attendance_records for all to authenticated using (public.can_access_class(class_id)) with check (public.can_access_class(class_id) and recorded_by=(select auth.uid()));
+drop policy if exists "grades_student_scope" on public.grades;
+create policy "grades_student_scope" on public.grades for all to authenticated using (public.can_access_student(student_id)) with check (public.can_access_student(student_id) and recorded_by=(select auth.uid()));
+drop policy if exists "report_cards_student_scope" on public.report_cards;
+create policy "report_cards_student_scope" on public.report_cards for all to authenticated using (public.can_access_student(student_id)) with check (public.can_access_student(student_id));
+drop policy if exists "fee_types_unit_scope" on public.fee_types;
+create policy "fee_types_unit_scope" on public.fee_types for all to authenticated using (public.can_access_unit(unit_id)) with check (public.can_access_unit(unit_id));
+drop policy if exists "invoices_student_scope" on public.invoices;
+create policy "invoices_student_scope" on public.invoices for all to authenticated using (public.can_access_student(student_id) or exists (select 1 from public.fee_types f where f.id=fee_type_id and public.can_access_unit(f.unit_id))) with check (public.can_access_student(student_id) or exists (select 1 from public.fee_types f where f.id=fee_type_id and public.can_access_unit(f.unit_id)));
+drop policy if exists "payments_invoice_scope" on public.payments;
+create policy "payments_invoice_scope" on public.payments for all to authenticated using (exists (select 1 from public.invoices i where i.id=invoice_id and public.can_access_student(i.student_id))) with check (exists (select 1 from public.invoices i where i.id=invoice_id and public.can_access_student(i.student_id)));
+
