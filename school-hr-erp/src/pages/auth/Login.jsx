@@ -23,6 +23,7 @@ export default function Login() {
     e.preventDefault(); setError(''); setInfo(''); setSubmitting(true)
     try {
       if (mode === 'signin') {
+        sessionStorage.removeItem('erp-demo')
         const { error: err } = await supabase.auth.signInWithPassword({ email, password })
         if (err) throw err
         navigate('/', { replace: true })

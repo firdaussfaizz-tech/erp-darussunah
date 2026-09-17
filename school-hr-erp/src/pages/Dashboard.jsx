@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [unit, setUnit] = useState('Semua Unit')
   const data = overviewByUnit[unit]
   const firstName = (profile?.full_name || 'Admin').split(' ')[0]
+  if (!demoMode) return <div className="max-w-3xl"><section className="dashboard-hero"><p className="eyebrow">Assalamu'alaikum, {firstName}.</p><h1>Ruang sekolah<br/><span>siap digunakan.</span></h1><div className="hero-bottom"><p>Data operasional akan muncul setelah Admin Yayasan memberi peran dan sekolah mengisi data awal.</p></div></section><Card><div className="flex items-start gap-4"><div className="h-3 w-3 mt-1.5 shrink-0 rounded-full bg-[var(--color-navy)]"/><div><h2 className="text-lg font-semibold">Akun operasional aktif</h2><p className="mt-2 text-sm leading-6 text-[var(--color-ink-soft)]">Mode demo tidak aktif. Hubungi Admin Yayasan untuk mengatur unit, peran, dan data awal Supabase.</p></div></div></Card></div>
   return <div>
     <section className="dashboard-hero">
       <p className="eyebrow">Assalamu'alaikum, {firstName}.</p>

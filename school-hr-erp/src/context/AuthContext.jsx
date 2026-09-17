@@ -4,7 +4,12 @@ import { supabase } from '../lib/supabaseClient'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [demoMode, setDemoMode] = useState(() => localStorage.getItem('erp-demo') === 'true')
+  const [demoMode, setDemoMode] = useState(() => {
+    // Demo hanya berlaku untuk tab browser ini dan tidak boleh menyamar sebagai sesi Auth.
+    sessionStorage.removeItem('erp-demo-legacy')
+    localStorage.removeItem('erp-demo')
+    return sessionStorage.getItem('erp-demo') === 'true'
+  })
   const [session, setSession] = useState(undefined) // undefined = belum dicek, null = tidak login
   const [profile, setProfile] = useState(null)
   const [roles, setRoles] = useState([])
@@ -52,13 +57,13 @@ export function AuthProvider({ children }) {
   }, [loadContext, demoMode])
 
   const enterDemo = () => {
-    localStorage.setItem('erp-demo', 'true')
+    sessionStorage.setItem('erp-demo', 'true')
     setDemoMode(true)
   }
 
   const signOut = async () => {
     if (demoMode) {
-      localStorage.removeItem('erp-demo')
+      sessionStorage.removeItem('erp-demo')
       setDemoMode(false)
       setSession(null)
       return
