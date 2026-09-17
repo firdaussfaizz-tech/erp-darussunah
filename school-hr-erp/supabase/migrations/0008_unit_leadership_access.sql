@@ -138,3 +138,18 @@ drop policy if exists "teaching_read_scope" on public.teaching_assignments;
 drop policy if exists "teaching_write_scope" on public.teaching_assignments;
 create policy "teaching_read_scope" on public.teaching_assignments for select to authenticated using (teacher_id = (select auth.uid()) or public.can_access_class(class_id));
 create policy "teaching_write_scope" on public.teaching_assignments for all to authenticated using (public.can_manage_class(class_id)) with check (public.can_manage_class(class_id));
+
+-- These helpers are used only by RLS. They must never be callable by anonymous API users.
+revoke execute on function public.is_admin_yayasan() from anon;
+revoke execute on function public.current_user_unit() from anon;
+revoke execute on function public.can_access_unit(uuid) from anon;
+revoke execute on function public.can_access_class(uuid) from anon;
+revoke execute on function public.can_access_student(uuid) from anon;
+revoke execute on function public.can_access_label(text) from anon;
+revoke execute on function public.is_unit_manager() from anon;
+revoke execute on function public.can_read_unit(uuid) from anon;
+revoke execute on function public.can_manage_unit(uuid) from anon;
+revoke execute on function public.can_manage_class(uuid) from anon;
+revoke execute on function public.can_manage_student(uuid) from anon;
+revoke execute on function public.can_read_profile(uuid) from anon;
+revoke execute on function public.write_audit_log() from anon;
