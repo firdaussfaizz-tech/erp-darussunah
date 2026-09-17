@@ -25,14 +25,16 @@ export function AuthProvider({ children }) {
       return
     }
     setLoadingContext(true)
-    const [{ data: profileData }, { data: roleData }, { data: employeeData }] = await Promise.all([
+    // Project GPT menyimpan peran langsung pada profiles.role (enum user_role)
+    // dan data kepegawaian pada staff.profile_id.
+    const [{ data: profileData }, { data: staffData }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-      supabase.from('user_roles').select('*, schools(nama, jenjang)').eq('user_id', userId),
-      supabase.from('employees').select('*, schools(nama, jenjang)').eq('user_id', userId).maybeSingle(),
+      supabase.from('staff').select('*, units(code, name)').eq('profile_id', userId).maybeSingle(),
     ])
+    const roleData = profileData?.role ? [{ role: profileData.role, unit_id: profileData.unit_id || null }] : []
     setProfile(profileData || null)
     setRoles(roleData || [])
-    setEmployee(employeeData || null)
+    setEmployee(staffData || null)
     setLoadingContext(false)
   }, [])
 
@@ -40,7 +42,7 @@ export function AuthProvider({ children }) {
     if (demoMode) {
       setSession({ user: { id: 'demo-user', email: 'admin@demo.darussunah.sch.id' } })
       setProfile({ id: 'demo-user', full_name: 'Admin Yayasan', email: 'admin@demo.darussunah.sch.id' })
-      setRoles([{ role: 'admin_yayasan', school_id: null }])
+      setRoles([{ role: 'admin_yayasan', unit_id: null }])
       setEmployee(null)
       setLoadingContext(false)
       return undefined
@@ -73,10 +75,10 @@ export function AuthProvider({ children }) {
 
   const roleNames = useMemo(() => roles.map((r) => r.role), [roles])
   const isAdminYayasan = roleNames.includes('admin_yayasan')
-  const isHr = roleNames.includes('hr')
-  const isManager = isAdminYayasan || isHr || roleNames.includes('admin_sekolah') || roleNames.includes('kepala_sekolah')
+  const isHr = roleNames.includes('hr') || roleNames.includes('staf_keuangan')
+  const isManager = isAdminYayasan || isHr || roleNames.includes('admin_unit') || roleNames.includes('wali_kelas')
   const hasFullAccess = isAdminYayasan || isHr
-  const managedSchoolIds = roles.filter((r) => r.school_id).map((r) => r.school_id)
+  const managedSchoolIds = roles.filter((r) => r.unit_id).map((r) => r.unit_id)
 
   const value = {
     session,
@@ -105,3 +107,4 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
 }
+
