@@ -35,3 +35,31 @@ revoke all on function public.write_audit_log() from public;
 grant execute on function public.write_audit_log() to authenticated;
 do $$ declare t text; begin foreach t in array array['profiles','units','staff'] loop execute format('drop trigger if exists audit_%I on public.%I',t,t); execute format('create trigger audit_%I after insert or update or delete on public.%I for each row execute function public.write_audit_log()',t,t); end loop; end $$;
 
+-- Unit/class scope helpers. SECURITY DEFINER avoids policy recursion while keeping
+-- the functions executable only by authenticated users.
+create or replace function public.current_user_unit() returns uuid
+language sql stable security definer set search_path = public
+as $$ select unit_id from public.profiles where id=(select auth.uid()) $$;
+revoke all on function public.current_user_unit() from public;
+grant execute on function public.current_user_unit() to authenticated;
+create or replace function public.can_access_unit(target_unit uuid) returns boolean
+language sql stable security definer set search_path = public
+as $$ select public.is_admin_yayasan() or (target_unit is not null and target_unit=public.current_user_unit()) $$;
+revoke all on function public.can_access_unit(uuid) from public;
+grant execute on function public.can_access_unit(uuid) to authenticated;
+create or replace function public.can_access_class(target_class uuid) returns boolean
+language sql stable security definer set search_path = public
+as $$ select public.is_admin_yayasan() or exists (select 1 from public.classes c where c.id=target_class and (c.unit_id=public.current_user_unit() or c.homeroom_teacher_id=(select auth.uid()))) or exists (select 1 from public.teaching_assignments ta where ta.class_id=target_class and ta.teacher_id=(select auth.uid())) $$;
+revoke all on function public.can_access_class(uuid) from public;
+grant execute on function public.can_access_class(uuid) to authenticated;
+create or replace function public.can_access_student(target_student uuid) returns boolean
+language sql stable security definer set search_path = public
+as $$ select public.is_admin_yayasan() or exists (select 1 from public.students s where s.id=target_student and s.current_unit_id=public.current_user_unit()) or exists (select 1 from public.class_enrollments ce where ce.student_id=target_student and public.can_access_class(ce.class_id)) $$;
+revoke all on function public.can_access_student(uuid) from public;
+grant execute on function public.can_access_student(uuid) to authenticated;
+create or replace function public.can_access_label(target_label text) returns boolean
+language sql stable security definer set search_path = public
+as $$ select public.is_admin_yayasan() or exists (select 1 from public.units u where target_label is not null and (lower(trim(target_label))=lower(trim(u.code)) or lower(trim(target_label))=lower(trim(u.name))) and u.id=public.current_user_unit()) $$;
+revoke all on function public.can_access_label(text) from public;
+grant execute on function public.can_access_label(text) to authenticated;
+
