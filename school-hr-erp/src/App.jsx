@@ -15,6 +15,7 @@ import TrainingList from './pages/training/TrainingList'
 import TrainingDetail from './pages/training/TrainingDetail'
 import OrgStructure from './pages/org/OrgStructure'
 import UserRoles from './pages/users/UserRoles'
+import YayasanAdmin from './pages/admin/YayasanAdmin'
 import { StudentsPage, AcademicPage, FinancePage, SdmPage, ResourcesPage, CommunicationPage, ReportsPage } from './pages/modules/ModulePages'
 
 export default function App() {
@@ -50,9 +51,11 @@ export default function App() {
             <Route path="pelatihan/:id" element={<RequireFullAccess><TrainingDetail /></RequireFullAccess>} />
             <Route path="struktur" element={<RequireFullAccess><OrgStructure /></RequireFullAccess>} />
             <Route path="pengguna" element={<RequireFullAccess><UserRoles /></RequireFullAccess>} />
+            <Route path="admin-yayasan" element={<RequireFullAccess><YayasanAdmin /></RequireFullAccess>} />
           </Route>
         </Routes>
       </BrowserRouter>
     </AuthProvider>
   )
 }
+
