@@ -16,7 +16,7 @@ function Toolbar({ query, setQuery, unit, setUnit, actionLabel, onAction }) {
 }
 
 export function StudentsPage() {
-  const { profile, isAdminYayasan, isManager } = useAuth()
+  const { profile, isAdminYayasan } = useAuth()
   const [rows, setRows] = useState([])
   const [units, setUnits] = useState([])
   const [classes, setClasses] = useState([])
@@ -40,6 +40,7 @@ export function StudentsPage() {
   }, [])
   useEffect(() => { load() }, [load])
   const availableUnits = useMemo(() => isAdminYayasan ? units : units.filter((u) => u.id === profile?.unit_id), [isAdminYayasan, units, profile?.unit_id])
+  const canManageStudents = isAdminYayasan || ['admin_unit', 'kepala_sekolah', 'wakil_kepala_sekolah'].includes(profile?.role)
   const visibleClasses = useMemo(() => classes.filter((c) => !form.current_unit_id || c.unit_id === form.current_unit_id), [classes, form.current_unit_id])
   const filtered = useMemo(() => rows.filter((s) => (!unit || s.current_unit_id === unit) && `${s.full_name} ${s.nis} ${s.nisn || ''}`.toLowerCase().includes(query.toLowerCase())), [rows, query, unit])
   const activeCount = rows.filter((s) => s.status === 'aktif').length
@@ -68,7 +69,7 @@ export function StudentsPage() {
     <div className="grid gap-4 sm:grid-cols-3 mb-6"><StatCard label="Siswa aktif" value={activeCount} sub="Pada unit yang dapat Anda akses" /><StatCard label="Total data siswa" value={rows.length} sub="Sesuai cakupan akun" accent="gold" /><StatCard label="Perlu dilengkapi" value={incompleteCount} sub="NISN atau kontak wali belum ada" /></div>
     {error && <Card className="mb-6 border-[var(--color-danger)]"><p className="text-sm text-[var(--color-danger)]">{error}</p></Card>}
     <SectionCard title="Daftar siswa" description={loading ? 'Memuat data…' : `${filtered.length} data ditampilkan`}>
-      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center"><label className="relative flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--color-ink-soft)]" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama, NIS, atau NISN…" className="w-full rounded-lg border bg-white py-2 pl-10 pr-3 text-sm" /></label><select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="">Semua unit yang dapat diakses</option>{availableUnits.map((u) => <option key={u.id} value={u.id}>{u.code} · {u.name}</option>)}</select>{isManager && <Button onClick={openCreate}><Plus className="h-4 w-4" />Tambah siswa</Button>}</div>
+      <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center"><label className="relative flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--color-ink-soft)]" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari nama, NIS, atau NISN…" className="w-full rounded-lg border bg-white py-2 pl-10 pr-3 text-sm" /></label><select value={unit} onChange={(e) => setUnit(e.target.value)} className="rounded-lg border bg-white px-3 py-2 text-sm"><option value="">Semua unit yang dapat diakses</option>{availableUnits.map((u) => <option key={u.id} value={u.id}>{u.code} · {u.name}</option>)}</select>{canManageStudents && <Button onClick={openCreate}><Plus className="h-4 w-4" />Tambah siswa</Button>}</div>
       {loading ? <div className="py-10 text-center text-sm text-[var(--color-ink-soft)]">Memuat data siswa…</div> : !filtered.length ? <div className="py-10 text-center text-sm text-[var(--color-ink-soft)]">Belum ada siswa pada cakupan ini.</div> : <Table columns={['NIS', 'Nama siswa', 'Unit / Kelas', 'Kontak wali', 'Status']}>
         {filtered.map((s) => { const guardian = (s.guardians || []).find((g) => g.is_primary_contact) || s.guardians?.[0]; const enrollment = s.class_enrollments?.[0]?.classes; return <Tr key={s.id}><Td className="font-mono text-xs text-[var(--color-ink-soft)]"><p>{s.nis}</p>{s.nisn && <p className="mt-1">NISN {s.nisn}</p>}</Td><Td><p className="font-medium">{s.full_name}</p><p className="mt-1 text-xs text-[var(--color-ink-soft)]">{s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '—'}</p></Td><Td><span className="font-medium">{s.units?.code || '—'}</span> · {enrollment?.name || 'Belum ditempatkan'}</Td><Td>{guardian ? <><p>{guardian.full_name}</p><p className="mt-1 text-xs text-[var(--color-ink-soft)]">{guardian.phone || 'Nomor belum diisi'}</p></> : 'Belum diisi'}</Td><Td><Badge color={tone(s.status === 'aktif' ? 'Aktif' : s.status)}>{s.status || 'aktif'}</Badge></Td></Tr> })}
       </Table>}
