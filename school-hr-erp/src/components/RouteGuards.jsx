@@ -25,3 +25,18 @@ export function RequireFullAccess({ children }) {
   }
   return children
 }
+
+export function RequireSchoolManager({ children }) {
+  const { isManager, loading } = useAuth()
+  if (loading) return <FullPageSpinner />
+  if (!isManager) {
+    return (
+      <EmptyState
+        icon={ShieldAlert}
+        title="Akses terbatas"
+        description="Halaman ini hanya dapat diakses oleh pimpinan sekolah sesuai unitnya."
+      />
+    )
+  }
+  return children
+}

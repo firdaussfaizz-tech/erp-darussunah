@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Search, Plus, Download, Users, BookOpen, WalletCards, PackageCheck, Megaphone, UserRoundCheck, Clock3, CircleAlert } from 'lucide-react'
 import { PageHeader, Card, SectionCard, StatCard, Badge, Button, Input, Select, Modal, Table, Tr, Td } from '../../components/ui'
+import { useAuth } from '../../context/AuthContext'
 import { students as initialStudents, invoices, schedule, facilities, announcements, staff, idr, unitOptions } from '../../lib/demoData'
 
 const tone = (status) => ({ Aktif: 'success', Lunas: 'success', Baik: 'success', Terbit: 'success', Menunggu: 'gold', Terjadwal: 'navy', Cuti: 'gold', 'Perlu perbaikan': 'gold', Menunggak: 'danger', Draf: 'neutral' }[status] || 'neutral')
@@ -14,6 +15,7 @@ function Toolbar({ query, setQuery, unit, setUnit, actionLabel, onAction }) {
 }
 
 export function StudentsPage() {
+  const { demoMode } = useAuth()
   const [rows, setRows] = useState(initialStudents)
   const [query, setQuery] = useState('')
   const [unit, setUnit] = useState('Semua Unit')
@@ -21,6 +23,7 @@ export function StudentsPage() {
   const [form, setForm] = useState({ nama: '', nis: '', unit: 'SD', kelas: '' })
   const filtered = useMemo(() => rows.filter((s) => (unit === 'Semua Unit' || s.unit === unit) && `${s.nama} ${s.nis} ${s.kelas}`.toLowerCase().includes(query.toLowerCase())), [rows, query, unit])
   const add = (e) => { e.preventDefault(); setRows((old) => [{ ...form, id: Date.now(), wali: 'Belum diisi', status: 'Aktif' }, ...old]); setOpen(false); setForm({ nama: '', nis: '', unit: 'SD', kelas: '' }) }
+  if (!demoMode) return <OperationalNotice title="Kesiswaan" description="Data siswa operasional belum tersambung pada akun ini. Admin dapat mengaktifkan akses dan impor data siswa dari Supabase." />
   return <>
     <PageHeader title="Data Siswa" description="Data induk siswa lintas jenjang dan riwayat kelas." actions={<Button variant="outline"><Download className="h-4 w-4" />Ekspor</Button>} />
     <div className="grid gap-4 sm:grid-cols-3 mb-6"><StatCard label="Siswa Aktif" value="1.248" sub="SD, SMP, dan SMA" /><StatCard label="Siswa Baru" value="164" sub="Tahun ajaran 2026/2027" accent="gold" /><StatCard label="Data Belum Lengkap" value="18" sub="Perlu ditindaklanjuti" /></div>
@@ -37,6 +40,8 @@ export function StudentsPage() {
 }
 
 export function AcademicPage() {
+  const { demoMode } = useAuth()
+  if (!demoMode) return <OperationalNotice title="Akademik" description="Jadwal, presensi siswa, dan nilai akan tampil setelah data akademik diisi oleh sekolah." />
   return <><PageHeader title="Akademik" description="Jadwal, presensi siswa, penilaian, dan kesiapan rapor." actions={<Button><Plus className="h-4 w-4" />Input nilai</Button>} />
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6"><StatCard label="Rombel Aktif" value="42" sub="Tahun ajaran 2026/2027" /><StatCard label="Hadir Hari Ini" value="96,4%" sub="1.203 dari 1.248 siswa" accent="gold" /><StatCard label="Nilai Tuntas" value="91%" sub="Rata-rata seluruh mapel" /><StatCard label="Rapor Siap" value="68%" sub="Semester ganjil" accent="gold" /></div>
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]"><SectionCard title="Jadwal hari ini" description="Selasa, 15 September 2026"><div className="space-y-1">{schedule.map((s) => <div key={s.time + s.className} className="grid grid-cols-[64px_1fr_auto] items-center gap-3 rounded-lg px-3 py-3 hover:bg-[var(--color-navy-50)]"><span className="font-mono text-sm font-semibold text-[var(--color-navy)]">{s.time}</span><div><p className="font-medium">{s.subject} · {s.className}</p><p className="text-sm text-[var(--color-ink-soft)]">{s.teacher}</p></div><Badge color="navy">{s.room}</Badge></div>)}</div></SectionCard>
@@ -45,33 +50,47 @@ export function AcademicPage() {
 }
 
 export function FinancePage() {
+  const { demoMode } = useAuth()
   const [query, setQuery] = useState(''); const [unit, setUnit] = useState('Semua Unit')
   const filtered = invoices.filter((i) => (unit === 'Semua Unit' || i.unit === unit) && `${i.nama} ${i.id} ${i.jenis}`.toLowerCase().includes(query.toLowerCase()))
+  if (!demoMode) return <OperationalNotice title="Keuangan" description="Tagihan dan pembayaran akan tampil setelah modul keuangan sekolah diaktifkan." />
   return <><PageHeader title="Keuangan" description="Tagihan siswa, penerimaan, dan pemantauan tunggakan." actions={<Button><Plus className="h-4 w-4" />Buat tagihan</Button>} />
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6"><StatCard label="Penerimaan September" value="Rp428,5 jt" sub="85,7% dari target" /><StatCard label="Tagihan Terbayar" value="1.086" sub="87% siswa" accent="gold" /><StatCard label="Tunggakan" value="Rp71,5 jt" sub="162 tagihan" /><StatCard label="Transaksi Hari Ini" value="47" sub="Rp18,4 juta" accent="gold" /></div>
     <SectionCard title="Tagihan terbaru"><Toolbar query={query} setQuery={setQuery} unit={unit} setUnit={setUnit} /><Table columns={['Nomor', 'Siswa', 'Jenis tagihan', 'Jatuh tempo', 'Nominal', 'Status']}>{filtered.map((i) => <Tr key={i.id}><Td className="font-mono text-xs">{i.id}</Td><Td><p className="font-medium">{i.nama}</p><p className="text-xs text-[var(--color-ink-soft)]">{i.unit}</p></Td><Td>{i.jenis}</Td><Td>{i.jatuhTempo}</Td><Td className="font-mono font-medium">{idr(i.nominal)}</Td><Td><Badge color={tone(i.status)}>{i.status}</Badge></Td></Tr>)}</Table></SectionCard></>
 }
 
 export function SdmPage() {
+  const { demoMode } = useAuth()
+  if (!demoMode) return <OperationalNotice title="SDM & Kepegawaian" description="Data pegawai dan penggajian akan mengikuti data operasional Supabase setelah akses HR diberikan." />
   return <><PageHeader title="SDM & Kepegawaian" description="Pegawai, presensi, cuti, penggajian, dan pengembangan kompetensi." actions={<Button><Plus className="h-4 w-4" />Tambah pegawai</Button>} />
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6"><StatCard label="Pegawai Aktif" value="86" sub="34 SD · 28 SMP · 24 SMA" /><StatCard label="Hadir Hari Ini" value="82" sub="95,3% pegawai" accent="gold" /><StatCard label="Cuti Menunggu" value="4" sub="Perlu persetujuan" /><StatCard label="Kontrak Berakhir" value="7" sub="Dalam 60 hari" accent="gold" /></div>
     <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]"><SectionCard title="Pegawai terbaru"><Table columns={['Nama', 'Jabatan', 'Unit', 'Status']}>{staff.map((s) => <Tr key={s.name}><Td className="font-medium">{s.name}</Td><Td>{s.role}</Td><Td>{s.unit}</Td><Td><Badge color={tone(s.status)}>{s.status}</Badge></Td></Tr>)}</Table></SectionCard><SectionCard title="Tindakan cepat"><div className="grid gap-2">{[['Catat presensi', UserRoundCheck], ['Proses penggajian', WalletCards], ['Tinjau pengajuan cuti', Clock3], ['Lihat pegawai bermasalah', CircleAlert]].map(([label, Icon]) => <button key={label} className="flex items-center gap-3 rounded-lg border px-3 py-3 text-left text-sm font-medium hover:bg-[var(--color-navy-50)]"><Icon className="h-4 w-4 text-[var(--color-gold)]" />{label}</button>)}</div></SectionCard></div></>
 }
 
 export function ResourcesPage() {
+  const { demoMode } = useAuth()
   const [query, setQuery] = useState(''); const [unit, setUnit] = useState('Semua Unit'); const filtered = facilities.filter((f) => (unit === 'Semua Unit' || f.unit === unit) && `${f.name} ${f.code}`.toLowerCase().includes(query.toLowerCase()))
+  if (!demoMode) return <OperationalNotice title="Sarana & Prasarana" description="Inventaris dan perbaikan aset akan tampil setelah data aset sekolah dimasukkan." />
   return <><PageHeader title="Sarana & Prasarana" description="Inventaris aset, kondisi fasilitas, dan kebutuhan perbaikan." actions={<Button><Plus className="h-4 w-4" />Tambah aset</Button>} />
     <div className="grid gap-4 sm:grid-cols-3 mb-6"><StatCard label="Total Aset" value="2.846" sub="Di seluruh unit" /><StatCard label="Kondisi Baik" value="94,1%" sub="2.678 aset" accent="gold" /><StatCard label="Perlu Tindakan" value="23" sub="Prioritas perbaikan" /></div>
     <SectionCard title="Inventaris utama"><Toolbar query={query} setQuery={setQuery} unit={unit} setUnit={setUnit} /><Table columns={['Kode aset', 'Nama', 'Unit', 'Lokasi', 'Jumlah', 'Kondisi']}>{filtered.map((f) => <Tr key={f.code}><Td className="font-mono text-xs">{f.code}</Td><Td className="font-medium">{f.name}</Td><Td>{f.unit}</Td><Td>{f.location}</Td><Td>{f.qty}</Td><Td><Badge color={tone(f.condition)}>{f.condition}</Badge></Td></Tr>)}</Table></SectionCard></>
 }
 
 export function CommunicationPage() {
+  const { demoMode } = useAuth()
+  if (!demoMode) return <OperationalNotice title="Komunikasi" description="Pengumuman operasional akan tampil setelah dibuat oleh Admin Yayasan atau Admin Sekolah." />
   return <><PageHeader title="Komunikasi" description="Pengumuman terpusat untuk guru, siswa, pegawai, dan orang tua." actions={<Button><Plus className="h-4 w-4" />Buat pengumuman</Button>} />
     <div className="grid gap-4 sm:grid-cols-3 mb-6"><StatCard label="Pengumuman Aktif" value="12" sub="Bulan September" /><StatCard label="Penerima Terjangkau" value="2.734" sub="Akun terverifikasi" accent="gold" /><StatCard label="Draf" value="3" sub="Menunggu pemeriksaan" /></div>
     <div className="grid gap-4">{announcements.map((a) => <Card key={a.title} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-4"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--color-gold-soft)]"><Megaphone className="h-5 w-5 text-[var(--color-gold)]" /></div><div><h3 className="font-semibold">{a.title}</h3><p className="mt-1 text-sm text-[var(--color-ink-soft)]">{a.audience} · {a.unit} · {a.date}</p></div></div><Badge color={tone(a.status)}>{a.status}</Badge></Card>)}</div></>
 }
 
 export function ReportsPage() {
+  const { demoMode } = useAuth()
+  if (!demoMode) return <OperationalNotice title="Pusat Laporan" description="Laporan akan tersedia setelah data operasional terisi dan periode pelaporan dipilih." />
   const reports = [['Rekap siswa per unit', 'Data siswa aktif, mutasi, dan kelulusan', Users], ['Laporan akademik', 'Presensi, nilai, dan kesiapan rapor', BookOpen], ['Laporan keuangan', 'Penerimaan, tagihan, dan tunggakan', WalletCards], ['Laporan sarpras', 'Inventaris dan kondisi aset', PackageCheck]]
   return <><PageHeader title="Pusat Laporan" description="Unduh laporan lintas unit untuk evaluasi dan rapat yayasan." /><div className="grid gap-4 md:grid-cols-2">{reports.map(([title, desc, Icon]) => <Card key={title} className="flex items-center gap-4"><div className="grid h-12 w-12 place-items-center rounded-xl bg-[var(--color-navy-50)]"><Icon className="h-6 w-6 text-[var(--color-navy)]" /></div><div className="flex-1"><h3 className="font-semibold">{title}</h3><p className="mt-1 text-sm text-[var(--color-ink-soft)]">{desc}</p></div><Button variant="outline" size="sm"><Download className="h-4 w-4" />Unduh</Button></Card>)}</div></>
+}
+
+function OperationalNotice({ title, description }) {
+  return <div className="max-w-2xl"><PageHeader title={title} description="Ruang operasional sekolah" /><Card><div className="flex items-start gap-4"><div className="h-3 w-3 mt-1.5 shrink-0 rounded-full bg-[var(--color-navy)]"/><div><h2 className="text-lg font-semibold">Data operasional belum tersedia</h2><p className="mt-2 text-sm leading-6 text-[var(--color-ink-soft)]">{description}</p></div></div></Card></div>
 }

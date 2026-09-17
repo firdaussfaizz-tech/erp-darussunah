@@ -38,4 +38,6 @@ Jalankan migrasi dalam `supabase/migrations` secara berurutan. Migrasi `0004_cor
 
 Proyek disiapkan untuk Vercel. Atur Root Directory ke `school-hr-erp` bila menghubungkan repository dari root, lalu tambahkan kedua environment variable Supabase untuk Production dan Preview.
 
+Konfigurasi aktif ERP menggunakan project Supabase GPT `mfewryswvszwwjsvfqbk` (YPI Darussunah, region ap-south-1). Project Claude dipisahkan dan tidak digunakan oleh aplikasi ini.
+
 Mode demo tersedia pada halaman login agar antarmuka dapat ditinjau tanpa akun Supabase. Data pada mode demo tidak ditulis ke database.
