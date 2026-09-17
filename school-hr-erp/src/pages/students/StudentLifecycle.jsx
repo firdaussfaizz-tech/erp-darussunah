@@ -51,7 +51,7 @@ export function StudentImportPage() {
       if (studentError || !student) { rejected += 1; continue }
       knownNis.add(row.nis); accepted += 1
       const steps = []
-      if (row.nama_wali) steps.push(supabase.from('guardians').insert({ student_id: student.id, full_name: row.nama_wali, phone: row.no_hp_wali || null, email: row.email_wali || null, relation: 'Orang tua/wali', is_primary_contact: true }))
+      if (row.nama_wali) steps.push(supabase.from('guardians').insert({ student_id: student.id, full_name: row.nama_wali, phone: row.no_hp_wali || null, email: row.email_wali || null, relation: 'wali', is_primary_contact: true }))
       const targetClass = row.kelas && classByUnitName[`${unit.id}:${row.kelas.toLowerCase()}`]
       if (targetClass) steps.push(supabase.from('class_enrollments').insert({ student_id: student.id, class_id: targetClass.id }))
       await Promise.all(steps)

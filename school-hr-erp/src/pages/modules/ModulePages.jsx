@@ -67,7 +67,7 @@ export function StudentsPage() {
     const followUps = []
     if (!editing && form.class_id) followUps.push(supabase.from('class_enrollments').insert({ student_id: savedStudent.id, class_id: form.class_id }))
     if (form.guardian_name.trim()) {
-      const guardianPayload = { student_id: savedStudent.id, full_name: form.guardian_name.trim(), phone: form.guardian_phone.trim() || null, relation: 'Orang tua/wali', is_primary_contact: true }
+      const guardianPayload = { student_id: savedStudent.id, full_name: form.guardian_name.trim(), phone: form.guardian_phone.trim() || null, relation: 'wali', is_primary_contact: true }
       followUps.push(editing?.guardian ? supabase.from('guardians').update(guardianPayload).eq('id', editing.guardian.id) : supabase.from('guardians').insert(guardianPayload))
     }
     const results = await Promise.all(followUps)
